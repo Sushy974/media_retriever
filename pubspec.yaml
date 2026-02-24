@@ -1,8 +1,8 @@
 name: media_retriever
 description: Flutter package for retrieving and handling media (images, video) from multiple sources.
 version: 0.1.0+1
-repository: https://github.com/nathanchateau/media_retriever
-homepage: https://github.com/nathanchateau/media_retriever
+repository: https://github.com/Sushy974/media_retriever
+homepage: https://github.com/Sushy974/media_retriever
 
 environment:
   sdk: ^3.10.0
