@@ -16,7 +16,11 @@ void _validateLimit(int? limit) {
 
 /// Flutter package for retrieving and handling media (images, video) from
 /// multiple sources.
+///
+/// Create a [MediaRetriever] instance to open the gallery/camera picker
+/// and get [File]s from the user selection.
 class MediaRetriever {
+  /// Creates a [MediaRetriever] instance.
   const MediaRetriever();
 
   /// Ouvre un bottom sheet permettant de sélectionner des médias dans la

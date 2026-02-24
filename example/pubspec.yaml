@@ -1,0 +1,12 @@
+name: media_retriever_example
+description: Example app for the media_retriever package.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  media_retriever:
+    path: ..

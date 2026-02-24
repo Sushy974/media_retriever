@@ -82,15 +82,9 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
     final files = <File>[];
     for (final entity in selected) {
       // IMPORTANT:
-      // Sur Android, `getFile()` peut générer un fichier "exporté" dans le
-      // cache
-      // (parfois visible/scané par certaines apps Galerie), ce qui ressemble à
-      // un doublon. On préfère donc renvoyer le fichier d'origine de la galerie
-      // quand il est disponible.
-      final file =
-          await entity.originFile ??
-          await entity.getFile(isOrigin: true) ??
-          await entity.getFile();
+      // Sur Android, un fichier "exporté" en cache peut être vu comme doublon
+      // par certaines apps. On préfère le fichier d'origine quand disponible.
+      final file = await entity.originFile ?? await entity.file;
       if (file != null) files.add(file);
     }
     if (!mounted) return;
