@@ -11,7 +11,7 @@ environment:
 dependencies:
   camera: ^0.11.3
   desktop_drop: ^0.4.4
-  file_picker: ^10.3.3
+  file_picker: ">=10.3.3 <12.0.0"
   flutter:
     sdk: flutter
   gal: ^2.3.0
