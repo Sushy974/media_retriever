@@ -7,6 +7,14 @@
 Flutter package for retrieving and handling media (images, video) from multiple sources.  
 Supported platforms: **iOS** and **Android**.
 
+## Screenshots
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Sushy974/media_retriever/main/screenshots/screenshot_1.png" alt="Bottom sheet de sélection" width="260" />
+  <img src="https://raw.githubusercontent.com/Sushy974/media_retriever/main/screenshots/screenshot_2.png" alt="Galerie multi-sélection" width="260" />
+  <img src="https://raw.githubusercontent.com/Sushy974/media_retriever/main/screenshots/screenshot_3.png" alt="Capture caméra" width="260" />
+</p>
+
 ## Installation
 
 Add to your app's `pubspec.yaml`:

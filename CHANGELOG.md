@@ -1,3 +1,7 @@
+## 0.2.1
+
+- **Documentation**: ajout de captures d'écran dans le README pour illustrer le package sur pub.dev.
+
 ## 0.2.0
 
 - **Web support**: ajout d'un picker dédié au web (`web_media_picker_dialog`) avec drag & drop via `desktop_drop` et `file_picker`.
