@@ -4,6 +4,8 @@ import 'package:photo_manager/photo_manager.dart';
 
 abstract interface class GalleryLoader {
   Future<List<AssetEntity>> loadGalleryAssets(MediaKind kind);
+  Future<List<AssetPathEntity>> loadAlbums(MediaKind kind);
+  Future<List<AssetEntity>> loadAlbumAssets(AssetPathEntity album);
 }
 
 class GalleryLoaderImpl implements GalleryLoader {
@@ -12,7 +14,9 @@ class GalleryLoaderImpl implements GalleryLoader {
   @override
   Future<List<AssetEntity>> loadGalleryAssets(MediaKind kind) async {
     // #region agent log
-    debugPrint('[media_retriever][gallery] loadGalleryAssets(entry) kind=$kind');
+    debugPrint(
+      '[media_retriever][gallery] loadGalleryAssets(entry) kind=$kind',
+    );
     // #endregion
 
     final seenIds = <String>{};
@@ -49,6 +53,47 @@ class GalleryLoaderImpl implements GalleryLoader {
     debugPrint('[media_retriever][gallery] loaded total=${all.length}');
     // #endregion
     return all;
+  }
+
+  @override
+  Future<List<AssetPathEntity>> loadAlbums(MediaKind kind) async {
+    // #region agent log
+    debugPrint('[media_retriever][gallery] loadAlbums(entry) kind=$kind');
+    // #endregion
+
+    final type = switch (kind) {
+      MediaKind.photo => RequestType.image,
+      MediaKind.video => RequestType.video,
+      MediaKind.any => RequestType.common,
+    };
+
+    final albums = await PhotoManager.getAssetPathList(
+      type: type,
+    );
+
+    albums.sort((a, b) {
+      final aDate = a.lastModified;
+      final bDate = b.lastModified;
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return bDate.compareTo(aDate);
+    });
+
+    // #region agent log
+    debugPrint('[media_retriever][gallery] loadAlbums total=${albums.length}');
+    // #endregion
+    return albums;
+  }
+
+  @override
+  Future<List<AssetEntity>> loadAlbumAssets(AssetPathEntity album) async {
+    // #region agent log
+    debugPrint(
+      '[media_retriever][gallery] loadAlbumAssets album=${album.name}',
+    );
+    // #endregion
+    return _loadAllFromPath(album);
   }
 
   Future<List<AssetEntity>> _loadAllFromPath(AssetPathEntity path) async {

@@ -214,7 +214,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
         );
         await Gal.putImage(xfile.path);
         if (!mounted) return;
-        Navigator.of(context).pop(<File>[File(xfile.path)]);
+        Navigator.of(context).pop(<XFile>[XFile(xfile.path)]);
         return;
       }
 
@@ -239,7 +239,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
       );
       await Gal.putVideo(xfile.path);
       if (!mounted) return;
-      Navigator.of(context).pop(<File>[File(xfile.path)]);
+      Navigator.of(context).pop(<XFile>[XFile(xfile.path)]);
     } on Object catch (e) {
       debugPrint('[media_retriever][camera] capture error: $e');
       if (mounted) {

@@ -8,12 +8,18 @@ class GalleryGrid extends StatelessWidget {
     required this.assets,
     required this.selectedIds,
     required this.onTap,
+    this.shrinkWrap = false,
     super.key,
   });
 
   final List<AssetEntity> assets;
-  final Set<String> selectedIds;
+
+  /// Liste ordonnée des IDs sélectionnés (ordre = ordre de sélection
+  /// utilisateur). L'index dans cette liste donne le numéro affiché sur
+  /// la vignette (1, 2, 3…).
+  final List<String> selectedIds;
   final ValueChanged<AssetEntity> onTap;
+  final bool shrinkWrap;
 
   static const int _crossAxisCount = 3;
 
@@ -21,6 +27,8 @@ class GalleryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8),
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: _crossAxisCount,
         crossAxisSpacing: 4,
@@ -29,9 +37,10 @@ class GalleryGrid extends StatelessWidget {
       itemCount: assets.length,
       itemBuilder: (context, index) {
         final entity = assets[index];
+        final position = selectedIds.indexOf(entity.id);
         return _GridCell(
           entity: entity,
-          isSelected: selectedIds.contains(entity.id),
+          numeroSelection: position >= 0 ? position + 1 : null,
           onTap: () => onTap(entity),
         );
       },
@@ -42,12 +51,15 @@ class GalleryGrid extends StatelessWidget {
 class _GridCell extends StatelessWidget {
   const _GridCell({
     required this.entity,
-    required this.isSelected,
+    required this.numeroSelection,
     required this.onTap,
   });
 
   final AssetEntity entity;
-  final bool isSelected;
+
+  /// Position 1-indexée dans la liste de sélection,
+  /// ou `null` si non sélectionné.
+  final int? numeroSelection;
   final VoidCallback onTap;
 
   String _formatDuration(Duration d) {
@@ -67,7 +79,7 @@ class _GridCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return _GridCellBody(
       entity: entity,
-      isSelected: isSelected,
+      numeroSelection: numeroSelection,
       onTap: onTap,
       formatDuration: _formatDuration,
     );
@@ -77,13 +89,13 @@ class _GridCell extends StatelessWidget {
 class _GridCellBody extends StatefulWidget {
   const _GridCellBody({
     required this.entity,
-    required this.isSelected,
+    required this.numeroSelection,
     required this.onTap,
     required this.formatDuration,
   });
 
   final AssetEntity entity;
-  final bool isSelected;
+  final int? numeroSelection;
   final VoidCallback onTap;
   final String Function(Duration d) formatDuration;
 
@@ -117,6 +129,8 @@ class _GridCellBodyState extends State<_GridCellBody> {
   @override
   Widget build(BuildContext context) {
     final isVideo = widget.entity.type == AssetType.video;
+    final isSelected = widget.numeroSelection != null;
+    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -175,18 +189,51 @@ class _GridCellBodyState extends State<_GridCellBody> {
                 ),
               ),
             ),
+          // Voile assombri sur les vignettes sélectionnées.
           AnimatedOpacity(
-            opacity: widget.isSelected ? 1 : 0,
+            opacity: isSelected ? 1 : 0,
             duration: const Duration(milliseconds: 120),
-            child: const ColoredBox(
-              color: Colors.black45,
-              child: Center(
-                child: Icon(
-                  Icons.check_circle,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
+            child: const ColoredBox(color: Colors.black38),
+          ),
+          // Badge numéro de sélection en haut à droite.
+          Positioned(
+            top: 6,
+            right: 6,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 120),
+              transitionBuilder: (child, animation) =>
+                  ScaleTransition(scale: animation, child: child),
+              child: isSelected
+                  ? Container(
+                      key: ValueKey<int>(widget.numeroSelection!),
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${widget.numeroSelection}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      key: const ValueKey<String>('unselected'),
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
             ),
           ),
         ],

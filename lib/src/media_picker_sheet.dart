@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:media_retriever/src/albums_view.dart';
 import 'package:media_retriever/src/camera_capture_page.dart';
 import 'package:media_retriever/src/gallery_grid.dart';
 import 'package:media_retriever/src/gallery_loader.dart';
@@ -9,15 +12,22 @@ import 'package:media_retriever/src/media_kind.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+enum _GalleryViewMode { flat, byAlbum }
+
 class MediaPickerSheet extends StatefulWidget {
   const MediaPickerSheet({
     super.key,
     this.limit,
     this.kind = MediaKind.any,
+    this.fileExtensions,
   });
 
   final int? limit;
   final MediaKind kind;
+
+  /// Extensions autorisées pour le file picker (bouton dossier).
+  /// Si null, les extensions par défaut sont déduites de [kind].
+  final List<String>? fileExtensions;
 
   @override
   State<MediaPickerSheet> createState() => _MediaPickerSheetState();
@@ -25,15 +35,53 @@ class MediaPickerSheet extends StatefulWidget {
 
 class _MediaPickerSheetState extends State<MediaPickerSheet> {
   final GalleryLoader _galleryLoader = GalleryLoaderImpl();
+
+  // --- Vue plate ---
   List<AssetEntity> _assets = [];
-  final Set<String> _selectedIds = {};
   bool _loading = true;
   String? _error;
+
+  // --- Vue par album ---
+  _GalleryViewMode _viewMode = _GalleryViewMode.flat;
+  List<AssetPathEntity> _albums = [];
+  bool _albumsLoading = false;
+  String? _albumsError;
+
+  // Sélection partagée entre les deux vues. On utilise une Map (qui en Dart
+  // préserve l'ordre d'insertion) pour conserver l'ordre exact dans lequel
+  // l'utilisateur a tapé sur les médias — ordre qu'on rendra visible via un
+  // numéro de sélection (1, 2, 3…) sur les vignettes, et qu'on respectera au
+  // moment du `pop` pour que les médias arrivent dans le bon ordre côté app.
+  final Map<String, AssetEntity> _selectedAssets = <String, AssetEntity>{};
 
   @override
   void initState() {
     super.initState();
     unawaited(_loadAssets());
+  }
+
+  Future<void> _loadAlbums() async {
+    if (_albumsLoading || _albums.isNotEmpty) return;
+    setState(() {
+      _albumsLoading = true;
+      _albumsError = null;
+    });
+    try {
+      final albums = await _galleryLoader.loadAlbums(widget.kind);
+      if (mounted) {
+        setState(() {
+          _albums = albums;
+          _albumsLoading = false;
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() {
+          _albumsError = e.toString();
+          _albumsLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadAssets() async {
@@ -61,34 +109,38 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
 
   void _toggleSelection(AssetEntity entity) {
     setState(() {
-      if (_selectedIds.contains(entity.id)) {
-        _selectedIds.remove(entity.id);
+      if (_selectedAssets.containsKey(entity.id)) {
+        _selectedAssets.remove(entity.id);
       } else {
         final limit = widget.limit;
-        if (limit != null && _selectedIds.length >= limit) return;
-        _selectedIds.add(entity.id);
+        if (limit != null && _selectedAssets.length >= limit) return;
+        _selectedAssets[entity.id] = entity;
       }
     });
   }
 
   Future<void> _validateSelection() async {
-    if (_selectedIds.isEmpty) return;
+    if (_selectedAssets.isEmpty) return;
 
-    var selected = _assets.where((a) => _selectedIds.contains(a.id)).toList();
+    // On itère dans l'ordre d'insertion = ordre de sélection utilisateur.
+    var selected = _selectedAssets.values.toList();
     final limit = widget.limit;
     if (limit != null && selected.length > limit) {
       selected = selected.take(limit).toList();
     }
-    final files = <File>[];
+    final xfiles = <XFile>[];
     for (final entity in selected) {
       // IMPORTANT:
-      // Sur Android, un fichier "exporté" en cache peut être vu comme doublon
-      // par certaines apps. On préfère le fichier d'origine quand disponible.
+      // Sur Android, `getFile()` peut générer un fichier "exporté" dans le
+      // cache
+      // (parfois visible/scané par certaines apps Galerie), ce qui ressemble à
+      // un doublon. On préfère donc renvoyer le fichier d'origine de la galerie
+      // quand il est disponible.
       final file = await entity.originFile ?? await entity.file;
-      if (file != null) files.add(file);
+      if (file != null) xfiles.add(XFile(file.path));
     }
     if (!mounted) return;
-    Navigator.of(context).pop(files);
+    Navigator.of(context).pop(xfiles);
   }
 
   Future<void> _openCamera() async {
@@ -98,7 +150,7 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
         '[media_retriever][permissions] openCamera(iOS) -> push camera',
       );
 
-      final result = await Navigator.of(context).push<List<File>>(
+      final result = await Navigator.of(context).push<List<XFile>>(
         MaterialPageRoute(
           builder: (context) => CameraCapturePage(kind: widget.kind),
         ),
@@ -158,7 +210,7 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
     }
     if (!mounted) return;
 
-    final result = await Navigator.of(context).push<List<File>>(
+    final result = await Navigator.of(context).push<List<XFile>>(
       MaterialPageRoute(
         builder: (context) => CameraCapturePage(kind: widget.kind),
       ),
@@ -169,11 +221,64 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
     }
   }
 
+  Future<void> _openFilePicker() async {
+    final allowedExtensions = widget.fileExtensions ??
+        switch (widget.kind) {
+          MediaKind.photo => [
+            'jpg',
+            'jpeg',
+            'png',
+            'gif',
+            'bmp',
+            'webp',
+            'heic',
+            'heif',
+          ],
+          MediaKind.video => ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'],
+          MediaKind.any => [
+            'jpg',
+            'jpeg',
+            'png',
+            'gif',
+            'bmp',
+            'webp',
+            'heic',
+            'heif',
+            'mp4',
+            'mov',
+            'avi',
+            'mkv',
+            'webm',
+            'm4v',
+          ],
+        };
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: allowedExtensions,
+      allowMultiple: widget.limit != 1,
+    );
+
+    if (result == null || result.files.isEmpty || !mounted) return;
+
+    var files = result.files.where((f) => f.path != null).toList();
+    final limit = widget.limit;
+    if (limit != null && files.length > limit) {
+      files = files.take(limit).toList();
+    }
+
+    final xfiles = files.map((f) => XFile(f.path!)).toList();
+    if (xfiles.isNotEmpty && mounted) {
+      Navigator.of(context).pop(xfiles);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final topBar = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      child: Stack(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Center(
             child: Container(
@@ -181,30 +286,90 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
                 color: Colors.grey,
                 borderRadius: BorderRadius.circular(10),
               ),
-              margin: const EdgeInsets.only(top: 10),
+              margin: const EdgeInsets.only(bottom: 12),
               height: 5,
               width: 160,
             ),
           ),
+
           Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-        
-            
-            Flexible(
-              child: FilledButton(
-                onPressed: _selectedIds.isEmpty ? null : _validateSelection,
-                child: const Text('Valider'),
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: SegmentedButton<_GalleryViewMode>(
+                  style: SegmentedButton.styleFrom(
+                    iconColor: Theme.of(
+                      context,
+                    ).colorScheme.secondary,
+                    selectedBackgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary,
+                    selectedForegroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary,
+                  ),
+                  segments: [
+                    ButtonSegment(
+                      value: _GalleryViewMode.flat,
+                      icon: const Icon(Icons.grid_view),
+                      label: Text(
+                        'Tous',
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.secondary,
+                        ),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: _GalleryViewMode.byAlbum,
+                      icon: const Icon(Icons.photo_library),
+                      label: Text(
+                        'Albums',
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.secondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                  selected: {_viewMode},
+                  onSelectionChanged: (selection) {
+                    final mode = selection.first;
+                    setState(() => _viewMode = mode);
+                    if (mode == _GalleryViewMode.byAlbum) {
+                      unawaited(_loadAlbums());
+                    }
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ],
       ),
     );
 
     Widget body;
-    if (_loading) {
+    if (_viewMode == _GalleryViewMode.byAlbum) {
+      if (_albumsLoading) {
+        body = const Center(child: CircularProgressIndicator());
+      } else if (_albumsError != null) {
+        body = Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(_albumsError!, textAlign: TextAlign.center),
+          ),
+        );
+      } else {
+        body = AlbumsView(
+          albums: _albums,
+          selectedIds: _selectedAssets.keys.toList(),
+          onTap: _toggleSelection,
+          loader: _galleryLoader,
+        );
+      }
+    } else if (_loading) {
       body = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
       body = Center(
@@ -216,7 +381,7 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
     } else {
       body = GalleryGrid(
         assets: _assets,
-        selectedIds: _selectedIds,
+        selectedIds: _selectedAssets.keys.toList(),
         onTap: _toggleSelection,
       );
     }
@@ -230,15 +395,32 @@ class _MediaPickerSheetState extends State<MediaPickerSheet> {
           child: body,
         ),
         SafeArea(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: IconButton.filled(
-                onPressed: _openCamera,
-                icon: const Icon(Icons.camera_alt),
-                tooltip: 'Ouvrir la caméra',
-              ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    IconButton.filled(
+                      onPressed: _openCamera,
+                      icon: const Icon(Icons.camera_alt),
+                      tooltip: 'Ouvrir la caméra',
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton.filled(
+                      onPressed: _openFilePicker,
+                      icon: const Icon(Icons.folder_open),
+                      tooltip: 'Parcourir les fichiers',
+                    ),
+                  ],
+                ),
+                FilledButton(
+                  onPressed:
+                      _selectedAssets.isEmpty ? null : _validateSelection,
+                  child: const Text('Valider'),
+                ),
+              ],
             ),
           ),
         ),

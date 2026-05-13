@@ -18,17 +18,15 @@ dependencies:
 
 ### Permissions (application native) — obligatoires
 
-Pour une checklist rapide, voir [INTEGRATION.md](INTEGRATION.md).
-
 Pour que le package fonctionne (galerie + caméra + enregistrement vidéo avec son), votre app **doit** déclarer les droits natifs suivants. Le package ne les ajoute pas ; c’est à vous de les configurer. Sans eux, le sélecteur ne s’ouvrira pas ou renverra une liste vide.
 
 **iOS** — à ajouter dans `ios/Runner/Info.plist` :
 
-| Clé | Rôle |
-|-----|------|
-| `NSPhotoLibraryUsageDescription` | Accès à la photothèque pour sélectionner des médias. |
-| `NSCameraUsageDescription` | Accès à la caméra pour capturer photos et vidéos. |
-| `NSMicrophoneUsageDescription` | Accès au micro pour enregistrer l’audio lors d’une vidéo. |
+| Clé                              | Rôle                                                      |
+| -------------------------------- | --------------------------------------------------------- |
+| `NSPhotoLibraryUsageDescription` | Accès à la photothèque pour sélectionner des médias.      |
+| `NSCameraUsageDescription`       | Accès à la caméra pour capturer photos et vidéos.         |
+| `NSMicrophoneUsageDescription`   | Accès au micro pour enregistrer l’audio lors d’une vidéo. |
 
 Exemple minimal :
 
@@ -50,13 +48,13 @@ Optionnel : si votre app **sauvegarde** aussi des photos/vidéos dans la phototh
 
 **Android** — à ajouter dans `android/app/src/main/AndroidManifest.xml` (dans `<manifest>`, avant `<application>`) :
 
-| Permission | Rôle |
-|------------|------|
-| `CAMERA` | Capturer photos et vidéos. |
-| `RECORD_AUDIO` | Enregistrer le son dans les vidéos. |
-| `READ_EXTERNAL_STORAGE` | Lire la galerie (Android &lt; 13). |
-| `READ_MEDIA_IMAGES` | Lire les images (Android 13+). |
-| `READ_MEDIA_VIDEO` | Lire les vidéos (Android 13+). |
+| Permission              | Rôle                                |
+| ----------------------- | ----------------------------------- |
+| `CAMERA`                | Capturer photos et vidéos.          |
+| `RECORD_AUDIO`          | Enregistrer le son dans les vidéos. |
+| `READ_EXTERNAL_STORAGE` | Lire la galerie (Android &lt; 13).  |
+| `READ_MEDIA_IMAGES`     | Lire les images (Android 13+).      |
+| `READ_MEDIA_VIDEO`      | Lire les vidéos (Android 13+).      |
 
 Exemple :
 

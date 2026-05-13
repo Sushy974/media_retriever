@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:media_retriever/src/media_kind.dart';
 import 'package:media_retriever/src/media_retriever_impl.dart';
 
@@ -16,58 +15,82 @@ void _validateLimit(int? limit) {
 
 /// Flutter package for retrieving and handling media (images, video) from
 /// multiple sources.
-///
-/// Create a [MediaRetriever] instance to open the gallery/camera picker
-/// and get [File]s from the user selection.
 class MediaRetriever {
-  /// Creates a [MediaRetriever] instance.
   const MediaRetriever();
 
-  /// Ouvre un bottom sheet permettant de sélectionner des médias dans la
-  /// galerie ou d'en capturer un via la caméra.
+  /// Ouvre un bottom sheet (mobile) ou un dialog (web) permettant de
+  /// sélectionner des médias dans la galerie ou d'en capturer un via la caméra.
   ///
   /// [limit] restreint le nombre de fichiers sélectionnables (null = illimité).
-  /// Retourne une liste de [File], ou une liste vide si l'utilisateur annule
+  /// Retourne une liste de [XFile], ou une liste vide si l'utilisateur annule
   /// ou si les permissions sont refusées.
-  Future<List<File>> recupereMedias(
+  Future<List<XFile>> recupereMedias(
     BuildContext context, {
     int? limit,
   }) {
     _validateLimit(limit);
-    return MediaRetrieverImpl.recupereMedias(
+    return recupereMediasPlatform(
       context,
       limit: limit,
       kind: MediaKind.any,
     );
   }
 
-  /// Ouvre un bottom sheet pour sélectionner ou capturer des photos uniquement.
+  /// Ouvre un bottom sheet (mobile) ou un dialog (web) pour sélectionner ou
+  /// capturer des photos uniquement.
   ///
   /// [limit] restreint le nombre de fichiers (null = illimité).
-  Future<List<File>> recuperePhotos(
+  Future<List<XFile>> recuperePhotos(
     BuildContext context, {
     int? limit,
   }) {
     _validateLimit(limit);
-    return MediaRetrieverImpl.recupereMedias(
+    return recupereMediasPlatform(
       context,
       limit: limit,
       kind: MediaKind.photo,
     );
   }
 
-  /// Ouvre un bottom sheet pour sélectionner ou capturer des vidéos uniquement.
+  /// Ouvre un bottom sheet (mobile) ou un dialog (web) pour sélectionner ou
+  /// capturer des vidéos uniquement.
   ///
   /// [limit] restreint le nombre de fichiers (null = illimité).
-  Future<List<File>> recupereVideos(
+  Future<List<XFile>> recupereVideos(
     BuildContext context, {
     int? limit,
   }) {
     _validateLimit(limit);
-    return MediaRetrieverImpl.recupereMedias(
+    return recupereMediasPlatform(
       context,
       limit: limit,
       kind: MediaKind.video,
+    );
+  }
+
+  /// Ouvre un bottom sheet (mobile) ou un dialog (web) pour récupérer
+  /// un document : photo depuis la galerie, prise de photo via la caméra,
+  /// ou fichier (PDF, images) depuis le système de fichiers.
+  ///
+  /// La galerie et la caméra restent en mode photo uniquement.
+  /// Le bouton fichiers accepte les formats PDF et images courants.
+  ///
+  /// [limit] restreint le nombre de fichiers (null = illimité).
+  Future<List<XFile>> recupereDocuments(
+    BuildContext context, {
+    int? limit,
+  }) {
+    _validateLimit(limit);
+    return recupereMediasPlatform(
+      context,
+      limit: limit,
+      kind: MediaKind.photo,
+      fileExtensions: const [
+        'pdf',
+        'jpg',
+        'jpeg',
+        'png',
+      ],
     );
   }
 }

@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:media_retriever/media_retriever.dart';
 
 void main() => runApp(const MediaRetrieverExampleApp());
@@ -30,7 +29,7 @@ class ExamplePage extends StatefulWidget {
 
 class _ExamplePageState extends State<ExamplePage> {
   final MediaRetriever _retriever = const MediaRetriever();
-  List<File> _files = [];
+  List<XFile> _files = [];
 
   Future<void> _pickMedias({int? limit}) async {
     final files = await _retriever.recupereMedias(context, limit: limit);
@@ -46,6 +45,12 @@ class _ExamplePageState extends State<ExamplePage> {
 
   Future<void> _pickVideos() async {
     final files = await _retriever.recupereVideos(context, limit: 1);
+    if (!mounted) return;
+    setState(() => _files = files);
+  }
+
+  Future<void> _pickDocuments() async {
+    final files = await _retriever.recupereDocuments(context, limit: 3);
     if (!mounted) return;
     setState(() => _files = files);
   }
@@ -77,6 +82,11 @@ class _ExamplePageState extends State<ExamplePage> {
           OutlinedButton(
             onPressed: _pickVideos,
             child: const Text('Vidéos uniquement (max 1)'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _pickDocuments,
+            child: const Text('Documents (PDF / images, max 3)'),
           ),
           const SizedBox(height: 24),
           Text(
